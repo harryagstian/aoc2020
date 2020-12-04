@@ -16,9 +16,10 @@ let lineStream = readline.createInterface(({
 
 let results = [0, 0]
 
+let regexExpression = /(\d*)-(\d*) (.{1}): (.*)/
+
 lineStream.on('line', (line) => {
     // part 1
-    let regexExpression = /(\d*)-(\d*) (.{1}): (.*)/
 
     let regexResult = line.match(regexExpression)
 
