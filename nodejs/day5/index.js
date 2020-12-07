@@ -10,6 +10,8 @@ const obs = new PerformanceObserver((items) => {
 })
 obs.observe({ entryTypes: ['measure'] });
 
+performance.mark('start')
+
 let inputFile = __dirname + '/input.txt'
 
 let DEBUG = true

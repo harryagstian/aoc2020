@@ -10,6 +10,8 @@ const obs = new PerformanceObserver((items) => {
 })
 obs.observe({ entryTypes: ['measure'] });
 
+performance.mark('start')
+
 let inputFile = __dirname + '/input.txt'
 
 let DEBUG = true
@@ -27,8 +29,6 @@ let x = [0, 0, 0, 0, 0]
 let rightSteps = [1, 3, 5, 7, 1]
 let y = 0
 let maxX = 0
-
-performance.mark('start')
 
 lineStream.on('line', (line) => {
     if (maxX === 0) maxX = line.length - 1

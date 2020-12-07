@@ -10,6 +10,8 @@ const obs = new PerformanceObserver((items) => {
 })
 obs.observe({ entryTypes: ['measure'] });
 
+performance.mark('start')
+
 let inputFile = __dirname + '/input.txt'
 
 let DEBUG = true
@@ -25,8 +27,6 @@ let lineStream = readline.createInterface(({
 let results = [0, 0]
 let entries = []
 let entry = {}
-
-performance.mark('start')
 
 let isValidLine = (element) => {
     let valid = true

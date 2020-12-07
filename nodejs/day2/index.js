@@ -1,6 +1,16 @@
 const fs = require('fs')
 const readline = require('readline')
 const _ = require('lodash')
+const { PerformanceObserver, performance } = require('perf_hooks');
+
+const obs = new PerformanceObserver((items) => {
+    let { name, duration } = items.getEntries()[0]
+    console.log(`${name}: ${duration}ms`)
+    performance.clearMarks()
+})
+obs.observe({ entryTypes: ['measure'] });
+
+performance.mark('start')
 
 let inputFile = __dirname + '/input.txt'
 
@@ -47,6 +57,7 @@ lineStream.on('close', () => {
     console.log(`Result #1: ${results[0]}`)
 
     // part 2
-    console.log(`Result #1: ${results[1]}`)
+    console.log(`Result #2: ${results[1]}`)
+    performance.measure('Start to end', 'start')
 
 })
