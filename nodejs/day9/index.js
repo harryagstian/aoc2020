@@ -33,7 +33,6 @@ let stacks = [] // only kept preambleLength number of items
 
 let results = [0, 0]
 
-let hasPair = false
 let done = false
 
 lineStream.on('line', (line) => {
