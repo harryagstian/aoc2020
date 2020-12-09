@@ -88,6 +88,7 @@ lineStream.on('close', () => {
             } else if (current === results[0] && ((end - start) < (len - i))) { // if current sum is equal to invalid number and current continuous array is longer
                 end = len
                 start = i
+                break;
             }
         }
 
