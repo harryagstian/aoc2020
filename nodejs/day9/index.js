@@ -85,7 +85,7 @@ lineStream.on('close', () => {
             current += fullStacksCopy[i]
             if (current > results[0]) {
                 break;
-            } else if (current === results[0] && ((end - start) < (len - i))) { // if current sum is equal to invalid number and there is sequence is longer
+            } else if (current === results[0] && ((end - start) < (len - i))) { // if current sum is equal to invalid number and current continuous array is longer
                 end = len
                 start = i
             }
