@@ -13,7 +13,7 @@ obs.observe({ entryTypes: ['measure'] });
 
 performance.mark('start')
 
-let inputFile = __dirname + '/sample2.txt'
+let inputFile = __dirname + '/input.txt'
 
 let DEBUG = true
 
@@ -38,52 +38,39 @@ lineStream.on('line', (line) => {
 
 lineStream.on('close', () => {
     stacks = _.sortBy(stacks)
+    stacks.push(stacks[stacks.length - 1] + 3)
     let stackSet = new Set(stacks)
-    let diff = [0, 0] // 1 jolt diff, 3 jolt diff
-    let diffOf3Array = []
-    let has3 = 0
+    let diff = [0, 0] // [1 jolt diff, 3 jolt diff] - used for part 1
+    let diffOneOccurence = 0 // add +1 every time sequential 1 jolt difference occurs - used for part 2
+    let pwr = [0, 0] // power of 2, power of 7 - used for part 2
 
     for (let i = 0; i < stacks.length - 1; i++) {
         if (stacks[i] + 1 === stacks[i + 1]) {
             diff[0]++
+            diffOneOccurence++
         } else {
+            if (diffOneOccurence === 4) {
+                pwr[1]++
+                diffOneOccurence = 0
+            } else if (diffOneOccurence > 0) {
+                pwr[0] += diffOneOccurence - 1 // ??? 
+                diffOneOccurence = 0
+            }
             diff[1]++
-        }
-
-        let count = 0
-        if (stackSet.has(stacks[i] + 3)) {
-            for (let j = 1; j < 3; j++) {
-                if (stackSet.has(stacks[i] + j)) {
-                    count++
-                }
-            }
-        }else if (stackSet.has(stacks[i] + 2)) {
-            for (let j = 1; j < 2; j++) {
-                if (stackSet.has(stacks[i] + j)) {
-                    count++
-                }
-            }
-        }
-        if(count > 0){
-            diffOf3Array.push(count)
         }
     }
 
-    diff[1]++
-
     results[0] = diff[0] * diff[1]
-    console.log(stacks)
+
     // part 1
     console.log(`Result #1: ${results[0]}`)
 
     // part 2
-    diffOf3Array = diffOf3Array
-    console.log(diffOf3Array)
-    let a = diffOf3Array.filter((element) => { return element > 0 }).reduce((acc, current) => {
-        return acc * current
-    }, 1)
 
-    console.log(a)
+    // console.log(pwr)
+
+    results[1] = (2 ** pwr[0]) * (7 ** pwr[1])
+
     console.log(`Result #2: ${results[1]}`)
 
     performance.mark('end')
