@@ -2,7 +2,6 @@ const fs = require('fs')
 const readline = require('readline')
 const _ = require('lodash')
 const { PerformanceObserver, performance } = require('perf_hooks');
-const { constant } = require('lodash');
 
 const obs = new PerformanceObserver((items) => {
     let { name, duration } = items.getEntries()[0]
