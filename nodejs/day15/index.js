@@ -1,8 +1,5 @@
-const fs = require('fs')
-const readline = require('readline')
 const _ = require('lodash')
 const { PerformanceObserver, performance } = require('perf_hooks');
-const { add, before } = require('lodash');
 
 const obs = new PerformanceObserver((items) => {
     let { name, duration } = items.getEntries()[0]
@@ -13,27 +10,42 @@ obs.observe({ entryTypes: ['measure'] });
 
 performance.mark('start')
 
-// let stacks = [0, 3, 6]
+// let input = [0, 3, 6]
 
-let stacks = [16, 1, 0, 18, 12, 14, 19]
+let input = [16, 1, 0, 18, 12, 14, 19]
 let results = [0, 0]
 
-let current = 0
+stacks = new Map() // more performant compared to object. whole script ran for 3900ms
 
-for (let i = stacks.length; i < 2020; i++) {
-    let len = stacks.filter(e => e === current).length
-    if (len < 2) {
-        current = 0
-    } else {
-        let lastIndex = _.findLastIndex(stacks, (e => {return e === current}))
-        let beforeLastIndex = _.findLastIndex(stacks, (e => {return e === current}), lastIndex - 1)
-        current = lastIndex - beforeLastIndex
-    }
-    stacks.push(current)
-    // console.log(i)
+let i = 1
+let last
+
+while (input.length > 0) {
+    last = input.shift()
+    stacks.set(last, i)
+    i++
 }
 
-results[0] = current
+last = 0 
+
+for (i; i < 30000000; i++) {
+    // console.log(i, last, stacks)
+    let newValue
+    if(stacks.has(last)){
+        newValue = i - stacks.get(last)
+    }else{
+        newValue = 0
+    }
+    stacks.set(last, i)
+
+    last = newValue
+
+    if(i === 2019){
+        results[0] = last
+    }
+}
+
+results[1] = last
 
 // part 1
 
