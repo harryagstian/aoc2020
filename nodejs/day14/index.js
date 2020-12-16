@@ -2,7 +2,6 @@ const fs = require('fs')
 const readline = require('readline')
 const _ = require('lodash')
 const { PerformanceObserver, performance } = require('perf_hooks');
-const { add } = require('lodash');
 
 const obs = new PerformanceObserver((items) => {
     let { name, duration } = items.getEntries()[0]
@@ -19,8 +18,6 @@ let lineStream = readline.createInterface(({
     input: fs.createReadStream(inputFile),
 }))
 
-
-let a = []
 let mem = {}
 let mem2 = {}
 let mask
