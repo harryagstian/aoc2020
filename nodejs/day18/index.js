@@ -25,35 +25,27 @@ let results = [0, 0]
 let getValue = (arr) => {
     let isFirst = true
     let value = 0
-    let shouldReturn = false
     let op = undefined
     // console.log(arr)
-    while (!shouldReturn) {
+    while (true) {
 
         let current = arr.shift()
 
         if (current === '(') {
             let innerValue = getValue(arr)
             if (op !== undefined) {
-                if (op === '+') value += innerValue
-                if (op === '*') value *= innerValue
-                if (op === '/') value /= innerValue
-                if (op === '-') value -= innerValue
+                eval(`value ${op}= innerValue`) // eval is dangerous ! do not use eval for unparsed / unsanitized input
                 op = undefined
             } else if (isFirst) {
                 value = Number(innerValue)
                 isFirst = false
             }
         } else if (current === ')') {
-            shouldReturn = true
+            break;
         } else if (isNaN(current)) {
             op = current
         } else if (op !== undefined) {
-
-            if (op === '+') value += Number(current)
-            if (op === '*') value *= Number(current)
-            if (op === '/') value /= Number(current)
-            if (op === '-') value -= Number(current)
+            eval(`value ${op}= Number(current)`) // eval is dangerous ! do not use eval for unparsed / unsanitized input
             op = undefined
         } else if (isFirst) {
             value = Number(current)
@@ -61,7 +53,7 @@ let getValue = (arr) => {
         }
 
         if (arr.length === 0) {
-            shouldReturn = true
+            break;
         }
     }
     // console.log(value)
@@ -79,7 +71,6 @@ let setPrecedence = (arr) => {
             let left = i - 1
             let right = i + 1
             let brackets = 0
-            let firstRun = true
 
             if (arr[left - 1] === '(' && arr[right + 1] === ')') {
                 // console.log('skipping')
@@ -89,20 +80,17 @@ let setPrecedence = (arr) => {
 
             while (true) { // lookup left
                 if (arr[left] === undefined) {
-                    // left++
                     break;
                 }
                 else if (arr[left] === '(') {
                     brackets--
 
                     if (brackets === 0) {
-                        // left--
                         break;
                     }
                 } else if (arr[left] === ')') {
                     brackets++
                 } else if (!isNaN(arr[left]) && brackets === 0) {
-                    // left++
                     break;
                 }
                 left--
@@ -111,9 +99,8 @@ let setPrecedence = (arr) => {
             // console.log('L', left)
             brackets = 0
 
-            while (true) { // lookup right
+            while (true) { // lookup right. right should be +1 since splice will move current item to the right
                 if (arr[right] === undefined) {
-                    // right++
                     break;
                 }
                 else if (arr[right] === '(') {
