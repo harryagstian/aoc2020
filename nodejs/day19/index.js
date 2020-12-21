@@ -44,7 +44,7 @@ lineStream.on('line', (line) => {
         if(part === 2 && key == 8){
             value = '42+'
         }else if(part === 2 && key == 11){
-            value = '42+ 31+' // hacky way to outsmart the rules lol. if results still does not match, try adding more nested
+            value = '42+ 31+' // might not be correct if the input for 42's and 31's is not equal, since the original rule state that number of 42's must equal to number of 31's item
         }
         let last = (value.includes('a') || value.includes('b')) ? true : false
 
