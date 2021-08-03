@@ -1,211 +1,395 @@
 const fs = require('fs')
-const readline = require('readline')
 const _ = require('lodash')
-const { PerformanceObserver, performance } = require('perf_hooks');
+const assert = require('assert')
+const { cloneDeep } = require('lodash')
+Error.stackTraceLimit = 2;
+const POSITION_VALUE = ["top", "right", "bottom", "left"]
 
-const obs = new PerformanceObserver((items) => {
-    let { name, duration } = items.getEntries()[0]
-    console.log(`${name}: ${duration}ms`)
-    performance.clearMarks()
-})
-obs.observe({ entryTypes: ['measure'] });
+/**
+ * Rotate CW 
+ * @param {*} arr 2D Array 
+ */
 
-performance.mark('start')
+const rotate = (arr) => {
+    const len = arr.length // assuming 2D array length is equal
+    const rotatedArr = []
 
-// let inputFile = __dirname + '/sample2.txt'
-// let inputFile = __dirname + '/sample.txt'
-let inputFile = __dirname + '/input.txt'
-
-let lineStream = readline.createInterface(({
-    input: fs.createReadStream(inputFile),
-}))
-
-let results = [1, 0]
-let tn = undefined
-let unmatchedImageArray = new Map()
-let unmatchedBorderArray = new Map()
-let smallImageDimension = 0
-let memoizeBorderCounts = new Map()
-
-let rotateClockwise = (arr) => { // rotate 2d square array 1 time clockwise
-    let rotatedArr = []
-    // console.table(arr)
-    for (let i = 0; i < smallImageDimension; i++) {
-        let str = ''
-        for (let j = 0; j < smallImageDimension; j++) {
-            str += arr[smallImageDimension - j - 1][i]
-
+    for (let i = 0; i < len; i++) {
+        rotatedArr[i] = []
+        for (let j = 0; j < len; j++) {
+            rotatedArr[i][j] = cloneDeep(arr[len - j - 1][i]) // -1 since since array start from 0 
         }
-        rotatedArr.push(str)
-
     }
-
-    // console.table(rotatedArr)
 
     return rotatedArr
 }
 
-let flip = (arr, direction) => {
-    // direction: vertical, horizontal
-    let flippedArr = []
+/**
+ * Flip horizontal
+ * @param {*} arr 2D array
+ */
 
-    for (let i = 0; i < smallImageDimension; i++) {
-        if (direction === 'horizontal') {
-            flippedArr.push(_.reverse([...arr[i]]).join(""))
-        } else {
-            flippedArr.push(arr[smallImageDimension - i - 1])
+const flip = (arr) => {
+    const len = arr.length // assuming 2D array length is equal
+    const rotatedArr = []
+
+    for (let i = 0; i < len; i++) {
+        rotatedArr[len - i - 1] = arr[i] // -1 since since array start from 0 
+    }
+
+    return rotatedArr
+}
+
+const isMatchingSide = (val1, val2) => {
+    return val1.join('') === val2.join('')
+}
+
+/**
+ * 
+ * @param {*} arr 
+ * @param {*} position 
+ *
+ */
+
+
+const getSideValue = (arr, position) => {
+    assert.strictEqual(POSITION_VALUE.includes(position), true)
+    let returnValue = []
+    const len = arr.length
+
+    if (["top", "bottom"].includes(position)) {
+        const index = position === "top" ? 0 : len - 1
+
+        returnValue = cloneDeep(arr[index])
+    } else {
+        const index = position === "left" ? 0 : len - 1
+
+        for (let i = 0; i < len; i++) {
+            returnValue.push(arr[i][index])
         }
     }
-    // console.table(flippedArr)
-    return flippedArr
+
+    return returnValue
 }
 
+const findMatch = (currentTiles, sideHashtagCounts, currentID, position, currentTileConditions, matchedID) => {
+    if (currentTileConditions[currentID][position] === null) {
+        const tile = currentTiles[currentID]
+        const side = getSideValue(tile, position)
+        const oppositePosition = POSITION_VALUE[(POSITION_VALUE.findIndex(e => e === position) + 2) % POSITION_VALUE.length]
+        const hashtagCount = side.filter(e => e === '#').length
+        const possibleMatchID = [...new Set(sideHashtagCounts[hashtagCount].filter(e => e !== currentID))]
+        const newStacks = []
+        // console.trace(currentID, position, possibleMatchID)
+        // console.debug(possibleMatchID)
+        for (matchID of possibleMatchID) {
+            for (let i = 0; i < 2; i++) {
+                for (let j = 0; j < 4; j++) {
+                    const oppositeSide = getSideValue(currentTiles[matchID], oppositePosition)
+                    // console.trace(side, oppositePosition)
+                    // if(currentID == 1171 && matchID == 2473) debugger;
+                    if (isMatchingSide(side, oppositeSide)) {
+                        currentTileConditions[currentID][position] = matchID
+                        currentTileConditions[matchID][oppositePosition] = currentID
+                        matchedID.add(currentID)
+                        matchedID.add(matchID)
+                        newStacks.push(matchID)
+                        // console.trace(currentID, matchID, position, oppositePosition)
+                    }
 
+                    if (!matchedID.has(matchID)) {
+                        currentTiles[matchID] = rotate(currentTiles[matchID])
+                    }
+                }
 
-let getBorders = (arr) => {
-    // console.log(Array(80).fill('.').join(''))
-    // console.table(arr)
-    let borders = Array(4).fill('')
-    borders[0] = arr[0] // top
-    borders[2] = arr[smallImageDimension - 1] // bottom
+                if (i === 0 && !matchedID.has(matchID)) {
+                    currentTiles[matchID] = flip(currentTiles[matchID])
+                }
+            }
+        }
+        return newStacks
+    }
+}
 
-    for (let j = 0; j < smallImageDimension; j++) { // assuming image array is always square
-        borders[1] += arr[j][smallImageDimension - 1] // right
-        borders[3] += arr[j][0] // left
+const removeTileBorder = (tile) => {
+    let newTile = _.cloneDeep(tile)
+
+    newTile.shift() // top
+    newTile.pop() // bottom
+
+    for (let i = 0; i < newTile.length; i++) {
+        newTile[i].shift() // left
+        newTile[i].pop() // right
     }
 
-    // console.log(borders)
-
-    return borders
+    return newTile
 }
 
-let findMatch = (border, currentId, usedImageIds) => {
+const printFullImage = (largeImageArray) => {
+    let returnData = ''
+    for (let i = 0; i < largeImageArray.length; i++) {
+        returnData += largeImageArray[i].join('')
+        returnData += '\n'
+    }
+    // console.log(returnData)
+    return returnData
+}
 
-    let id = undefined
-    let found = false
-    let matchCount = 0
-    let possibleIds = memoizeBorderCounts.get([...border].filter(e => e === "#").length)
-    possibleIds = _.cloneDeep(possibleIds)
-    possibleIds.delete(currentId)
+const mapImageID = (currentID, currentTileConditions, IDCoordinateMapping) => {
+    let [baseY, baseX] = IDCoordinateMapping[currentID].split('.').map(Number)
+    const stacks = []
 
-    // console.log(border, possibleIds, [...border].filter(e => e === "#").length, memoizeBorderCounts)
-    for (const possibleId of possibleIds) {
-        let c = unmatchedImageArray.get(possibleId)
-        for (let i = 0; i < 2; i++) {
-            for (let j = 0; j < 4; j++) {
-                let possibleBorders = getBorders(c)
-
-                let idx = possibleBorders.findIndex(e => { return e === border })
-
-                if (idx > -1) {
-                    // console.log(possibleId, idx, possibleBorders)
-                    matchCount++
-                    id = possibleId
-                    break;
-                } 
-                c = rotateClockwise(c)
-                // if possibleId is in usedImagesIds, image cannot be transform anymore
-            }
-
-            if(id !== undefined){
+    for ([key, value] of Object.entries(_.pickBy(currentTileConditions[currentID], (o) => { return o !== null }))) {
+        let y = baseY
+        let x = baseX
+        switch (key) {
+            case "top":
+                y++
                 break;
-            }
-            // flip image
-            c = flip(c, 'horizontal')
+            case "bottom":
+                y--
+                break;
+            case "left":
+                x--
+                break;
+            case "right":
+                x++
+                break;
         }
-        if(id !== undefined){
+        if (IDCoordinateMapping[value] === undefined) {
+            IDCoordinateMapping[value] = `${y}.${x}`
+            stacks.push(value)
+        }
+    }
+
+    return stacks
+}
+
+const parseSeaMonster = (text) => {
+    text = text.split('\n')
+    let pos = []
+
+    // parse position 
+    for (let i = 0; i < text.length; i++) {
+        let line = text[i].split('')
+        for (let j = 0; j < line.length; j++) {
+            if (line[j] === "#") {
+                pos.push(`${i}.${j}`)
+            }
+        }
+    }
+
+    // normalize position so that first occurence of # is on 0.0
+
+    const [baseY, baseX] = pos[0].split('.').map(Number)
+
+    for (let i = 1; i < pos.length; i++) {
+        const [y, x] = pos[i].split('.').map(Number)
+        pos[i] = `${y}.${x - baseX}`
+    }
+
+    return pos
+}
+
+
+const main = () => {
+    console.time("runtime")
+
+    const inputFile = __dirname + '/input.txt'
+    // const inputFile = __dirname + '/sample.txt'
+
+    const text = fs.readFileSync(inputFile).toString().split("\n")
+
+    const results = [1, 0]
+
+    let baseTiles = {}
+
+    // parse text into object with 2d array
+
+    let currentLineID = undefined
+
+    for (let i = 0; i < text.length; i++) {
+        const line = text[i]
+        if (line.includes("Tile")) {
+            currentLineID = /(\d+)/g.exec(line).shift()
+
+            assert.strictEqual(baseTiles[currentLineID], undefined)
+
+            baseTiles[currentLineID] = []
+        } else if (line === "") {
+            currentLineID = undefined
+        } else {
+            assert.notStrictEqual(currentLineID, undefined)
+
+            baseTiles[currentLineID].push([...line])
+        }
+    }
+
+
+    const baseID = Object.keys(baseTiles)
+    let baseTileConditions = {}
+
+    // speed up matching by counting number of # in given sides
+
+    const sideHashtagCounts = {}
+
+    for (let i = 0; i < baseID.length; i++) {
+        const currentID = baseID[i]
+        const currentTiles = baseTiles[currentID]
+        baseTileConditions[currentID] = {}
+
+        for (let j = 0; j < POSITION_VALUE.length; j++) {
+            const currentPosition = POSITION_VALUE[j]
+            const currentSide = getSideValue(currentTiles, currentPosition)
+            const hashtagCount = currentSide.filter(e => e === '#').length
+
+            if (sideHashtagCounts[hashtagCount] === undefined) {
+                sideHashtagCounts[hashtagCount] = []
+            }
+
+            sideHashtagCounts[hashtagCount].push(currentID)
+            baseTileConditions[currentID][currentPosition] = null
+        }
+    }
+
+
+    for (let i = 0; i < baseID.length; i++) {
+        let stacks = [baseID[i]]
+        const currentTileConditions = cloneDeep(baseTileConditions)
+        const currentTiles = cloneDeep(baseTiles)
+        const matchedID = new Set()
+
+        while (stacks.length > 0) {
+            const currentID = stacks.shift()
+
+            for (position of POSITION_VALUE) {
+                const newStacks = findMatch(currentTiles, sideHashtagCounts, currentID, position, currentTileConditions, matchedID)
+                stacks = stacks.concat([...new Set(newStacks)])
+
+            }
+            // console.log(baseID[i], stacks, matchedID)
+        }
+        // console.trace(currentTileConditions)
+        if (matchedID.size === baseID.length) {
+            // console.trace(currentTileConditions)
+            baseTileConditions = currentTileConditions
+            baseTiles = currentTiles
             break;
         }
     }
-    // console.log(matchCount)
-    return (found) ? undefined : id
+    // console.trace(baseTiles, sideHashtagCounts)
+
+    // part 1 solution
+
+    let bottomLeftID = undefined
+
+    for ([key, value] of Object.entries(baseTileConditions)) {
+        if (Object.keys(_.pickBy(value, (o) => { return o === null })).length === 2) {
+            results[0] *= key
+        }
+
+        if (value.bottom === null && value.left === null) {
+            bottomLeftID = key
+        }
+    }
+
+    console.log(`Part 1 solution: ${results[0]}`)
+
+    // arrange picture. small / large image is square, so image size is rootsquare of baseID.length
+
+    // start from bottom left
+
+    let IDCoordinateMapping = {}
+
+    IDCoordinateMapping[bottomLeftID] = "0.0"
+    let stacks = [bottomLeftID]
+
+
+    while (Object.keys(IDCoordinateMapping).length < baseID.length) {
+        const currentID = stacks.shift()
+        let newStacks = mapImageID(currentID, baseTileConditions, IDCoordinateMapping)
+        stacks = [...new Set(newStacks)]
+    }
+
+
+    const distinctValue = new Set(Object.values(IDCoordinateMapping))
+    assert(distinctValue.size === Object.values(IDCoordinateMapping).length, true, `Expecting ${IDCoordinateMapping.length}, got ${distinctValue.length}`) // sanity check
+    // convert position coordinate to array
+
+    const largeImageLen = Math.sqrt(distinctValue.size)
+    IDCoordinateMapping = _.invert(IDCoordinateMapping)
+
+    for (const [key, value] of Object.entries(baseTiles)) {
+        baseTiles[key] = removeTileBorder(value)
+    }
+
+    const smallImageLen = baseTiles[bottomLeftID].length
+
+    let largeImageArray = []
+    for (let y = 0; y < largeImageLen; y++) {
+        for (let i = 0; i < smallImageLen; i++) { // iterate downwards in the small array
+            let temp = []
+            for (let x = 0; x < largeImageLen; x++) {
+                const currentID = IDCoordinateMapping[`${largeImageLen - y - 1}.${x}`]
+                const currentTile = baseTiles[currentID]
+                temp = temp.concat(currentTile[i])
+            }
+            largeImageArray.push(temp)
+        }
+    }
+
+    // console.log(printFullImage(largeImageArray))
+    // console.log(printFullImage(baseTiles[bottomLeftID]))
+    // console.log(bottomLeftID)
+
+    const seaMonsterText = fs.readFileSync(__dirname + '/seamonster.txt').toString()
+
+    let seaMonsterPosition = parseSeaMonster(seaMonsterText)
+
+    // 4 years with javascript, first time came across this statement.. https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/label
+
+    let seaMonsterOccurence
+    flipLoop:
+    for (let i = 0; i < 2; i++) { // flip
+        rotateLoop:
+        for (let j = 0; j < 4; j++) { // rotate
+            seaMonsterOccurence = 0
+            // console.log('print', i, j)
+            // console.log(printFullImage(largeImageArray))
+            yLoop:
+            for (let y = 0; y < largeImageArray.length; y++) {
+                xLoop:
+                for (let x = 0; x < largeImageArray.length; x++) {
+                    zLoop:
+                    if (largeImageArray[y][x] === "#") {
+                        let hasSeaMonster = true
+                        for (let z = 1; z < seaMonsterPosition.length; z++) {
+                            const [offsetY, offsetX] = seaMonsterPosition[z].split('.').map(Number)
+
+                            if (largeImageArray[y + offsetY] === undefined || largeImageArray[y + offsetY][x + offsetX] !== "#") {
+                                hasSeaMonster = false
+                                break;
+                            }
+                        }
+
+                        if (hasSeaMonster) {
+                            seaMonsterOccurence++
+                        }
+                    }
+                }
+            }
+            if (seaMonsterOccurence > 0) {
+                break flipLoop;
+            }
+            largeImageArray = rotate(largeImageArray)
+        }
+        largeImageArray = flip(largeImageArray)
+    }
+
+    results[1] = printFullImage(largeImageArray).match(/#/g).length - (seaMonsterPosition.length * seaMonsterOccurence)
+    console.log(`Part 2 solution: ${results[1]}`)
+
+    console.timeEnd("runtime")
 }
 
-lineStream.on('line', (line) => {
-    if (line.includes('Tile')) {
-        tn = line.split(' ').pop().replace(':', '')
-
-        unmatchedImageArray.set(tn, [])
-    } else if (line === '') {
-        return
-    } else {
-        let p = unmatchedImageArray.get(tn)
-        p.push(line)
-        unmatchedImageArray.set(tn, p)
-
-        if (smallImageDimension === 0) {
-            smallImageDimension = line.length
-        }
-    }
-})
-
-
-lineStream.on('close', () => {
-
-    // extract border from unmatchedImageArray
-
-    for (const [k, v] of unmatchedImageArray.entries()) {
-        let borders = getBorders(v)
-        // console.log(k, borders)
-        unmatchedBorderArray.set(k, borders)
-
-        for (let i = 0; i < borders.length; i++) {
-            let occurence = [...borders[i]].filter(element => element === '#').length
-            let t = undefined
-            if (!memoizeBorderCounts.has(occurence)) {
-                t = new Set()
-                t.add(k)
-            } else {
-                t = memoizeBorderCounts.get(occurence)
-                t.add(k)
-            }
-            memoizeBorderCounts.set(occurence, t) // image will only match if number of # in each border is equal, we can map out possible border pairs
-        }
-    }
-
-    // console.log(unmatchedImageArray)
-    // console.log(dimension, unmatchedImageArray.size)
-
-    // console.table(unmatchedBorderArray.get('2729'))
-    // rotateClockwise(unmatchedBorderArray.get('2729'))
-    // console.table(unmatchedBorderArray.get('2729'))
-
-    // console.table(unmatchedImageArray.get('2729'))
-    // console.log(1, unmatchedBorderArray)
-
-    // rotateClockwise(unmatchedImageArray.get('2729'))
-    // unmatchedImageArray.set('2729', rotateClockwise(unmatchedImageArray.get('2729')))
-    // unmatchedImageArray.set('2729', rotateClockwise(unmatchedImageArray.get('2729')))
-    // unmatchedImageArray.set('2729', rotateClockwise(unmatchedImageArray.get('2729')))
-    // unmatchedImageArray.set('2729', rotateClockwise(unmatchedImageArray.get('2729')))
-
-    // flip(unmatchedImageArray.get('2729'), 'horizontal')
-    // flip(unmatchedImageArray.get('2729'), 'vertical') // isnt flip vertical = flip horizontal + rotate clockwise 2x ?
-
-    // assuming original image is square, side length is equal to root square of unmatched.size
-
-
-    let unmatchedImageArrayId = [...unmatchedImageArray.keys()]
-    // console.log(memoizeBorderCounts)
-    console.log(unmatchedImageArrayId, memoizeBorderCounts)
-
-    for(const id of unmatchedImageArrayId){
-        let count = 0
-        for (let i = 0; i < 4; i++){
-            let a = findMatch(unmatchedBorderArray.get(id)[i], id)
-            // console.log(a)
-            if( a !== undefined){
-                count++
-            }
-        }
-        if(count <3){
-            results[0] *= id
-            console.log(id, count)
-        }
-    }
-
-    console.log(`Result #1: ${results[0]}`)
-
-    performance.mark('end')
-    performance.measure('Start to end', 'start', 'end')
-})
+main()
