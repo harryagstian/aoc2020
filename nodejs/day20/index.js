@@ -80,21 +80,16 @@ const findMatch = (currentTiles, sideHashtagCounts, currentID, position, current
         const hashtagCount = side.filter(e => e === '#').length
         const possibleMatchID = [...new Set(sideHashtagCounts[hashtagCount].filter(e => e !== currentID))]
         const newStacks = []
-        // console.trace(currentID, position, possibleMatchID)
-        // console.debug(possibleMatchID)
         for (matchID of possibleMatchID) {
             for (let i = 0; i < 2; i++) {
                 for (let j = 0; j < 4; j++) {
                     const oppositeSide = getSideValue(currentTiles[matchID], oppositePosition)
-                    // console.trace(side, oppositePosition)
-                    // if(currentID == 1171 && matchID == 2473) debugger;
                     if (isMatchingSide(side, oppositeSide)) {
                         currentTileConditions[currentID][position] = matchID
                         currentTileConditions[matchID][oppositePosition] = currentID
                         matchedID.add(currentID)
                         matchedID.add(matchID)
                         newStacks.push(matchID)
-                        // console.trace(currentID, matchID, position, oppositePosition)
                     }
 
                     if (!matchedID.has(matchID)) {
@@ -131,7 +126,6 @@ const printFullImage = (largeImageArray) => {
         returnData += largeImageArray[i].join('')
         returnData += '\n'
     }
-    // console.log(returnData)
     return returnData
 }
 
@@ -267,17 +261,13 @@ const main = () => {
                 stacks = stacks.concat([...new Set(newStacks)])
 
             }
-            // console.log(baseID[i], stacks, matchedID)
         }
-        // console.trace(currentTileConditions)
         if (matchedID.size === baseID.length) {
-            // console.trace(currentTileConditions)
             baseTileConditions = currentTileConditions
             baseTiles = currentTiles
             break;
         }
     }
-    // console.trace(baseTiles, sideHashtagCounts)
 
     // part 1 solution
 
@@ -338,10 +328,6 @@ const main = () => {
         }
     }
 
-    // console.log(printFullImage(largeImageArray))
-    // console.log(printFullImage(baseTiles[bottomLeftID]))
-    // console.log(bottomLeftID)
-
     const seaMonsterText = fs.readFileSync(__dirname + '/seamonster.txt').toString()
 
     let seaMonsterPosition = parseSeaMonster(seaMonsterText)
@@ -351,16 +337,10 @@ const main = () => {
     let seaMonsterOccurence
     flipLoop:
     for (let i = 0; i < 2; i++) { // flip
-        rotateLoop:
         for (let j = 0; j < 4; j++) { // rotate
             seaMonsterOccurence = 0
-            // console.log('print', i, j)
-            // console.log(printFullImage(largeImageArray))
-            yLoop:
             for (let y = 0; y < largeImageArray.length; y++) {
-                xLoop:
                 for (let x = 0; x < largeImageArray.length; x++) {
-                    zLoop:
                     if (largeImageArray[y][x] === "#") {
                         let hasSeaMonster = true
                         for (let z = 1; z < seaMonsterPosition.length; z++) {
