@@ -1,87 +1,220 @@
+const assert = require('assert')
 const fs = require('fs')
-const readline = require('readline')
 const _ = require('lodash')
-const { PerformanceObserver, performance } = require('perf_hooks');
-const { cloneDeep, pick } = require('lodash');
+Error.stackTraceLimit = 10;
 
-const obs = new PerformanceObserver((items) => {
-    let { name, duration } = items.getEntries()[0]
-    console.log(`${name}: ${duration}ms`)
-    performance.clearMarks()
-})
-obs.observe({ entryTypes: ['measure'] });
+const setMinMax = (min, max, current) => {
+    if (min === undefined || min > current) {
+        min = current
+    }
 
-performance.mark('start')
+    if (max === undefined || max < current) {
+        max = current
+    }
+    return [min, max]
+}
 
-// let inputFile = __dirname + '/sample2.txt'
-// let inputFile = __dirname + '/sample.txt'
-let inputFile = __dirname + '/input.txt'
+const pickup = (cll, current) => {
+    // from 
+    // {
+    //     3: 8
+    //     8: 9
+    //     9: 1
+    //     1: 2
+    //     2: 5
+    // }
 
-let lineStream = readline.createInterface(({
-    input: fs.createReadStream(inputFile),
-}))
+    // to
+    // {
+    //     3: 2
+    //     2: 5
+    // }
+    let next = cll[current]
+    cll[current] = undefined
+    let arr = []
+    for (let i = 0; i < 3; i++) {
+        arr.push(next)
+        const temp = next
+        next = cll[next] // move to next linked list
+        delete cll[temp] // delete previous item
+    }
 
-let results = [0, 0]
+    cll[current] = next
 
-lineStream.on('line', (line) => {
-    let arr = line.split('').map(Number)
+    return [arr, next]
+}
 
-    let labelCursor = arr[0]
-    let destinationCursor = 0
+const place = (cll, arr, destination) => {
+    const lastChain = cll[destination]
+    let next = destination
+    for (let i = 0; i < arr.length; i++) {
+        const current = arr[i]
+        cll[next] = current
+        next = current
+    }
 
-    for (let i = 0; i < 100; i++) {
-        let pickup = []
-        let labelDestination = arr[destinationCursor]
-        // console.log(`Iteration ${i + 1}`)
-        // console.log(`Start: ${arr.join(' ')}`)
-        // console.log(`Cursor label: ${labelCursor}`)
-        // console.log(`Destination cursor: ${destinationCursor}`)
-        // console.log(labelDestination, cursor, arr)
-        for (let j = 1; j < 4; j++) {
-            let v = destinationCursor + 1
-            // console.log(destinationCursor, arr, v)
-            if (v >= arr.length) {
-                v = 0
-            }
-            // console.log(j, (destinationCursor + 1) % arr.length, arr)
-            pickup = pickup.concat(arr.splice(v, 1))
+    cll[next] = lastChain
+
+    return lastChain
+}
+
+const simulate = (cll, current, max) => {
+    const [arr, newCurrent] = pickup(cll, current)
+    let destination = current - 1
+    while (true) {
+        if (destination <= 0) {
+            destination = max
         }
-        do {
-            labelDestination--
-            if (labelDestination === 0) {
-                labelDestination = 9
-            }
-        } while (pickup.includes(labelDestination))
-        // console.log(`Destination label: ${labelDestination}`)
-        // console.log(`Pickup: ${pickup.join('')}`)
-        let cursorDestination = arr.findIndex(e => e === labelDestination) + 1
-        arr.splice(cursorDestination, 0, ...pickup)
+        if (!arr.includes(String(destination))) {
+            break
+        };
+        destination--
+    }
+    place(cll, arr, destination)
 
-        destinationCursor = (arr.findIndex(e => e === labelCursor) + 1) % 9
-        labelCursor = arr[destinationCursor]
+    return newCurrent
+}
 
-        // console.log(`End: ${arr.join(' ')}`)
-        // console.log(Array(50).fill("=").join("="))
+const printChain = (cll, start, print = true) => {
+    const arr = []
+    const keys = Object.keys(cll)
+    let current = start || keys[0]
+    while (arr.length < keys.length) {
+        arr.push(cll[current])
+        current = cll[current]
+    }
+    if (start !== undefined) {
+        _.pull(arr, String(start))
+    }
+    if (print) {
+        console.log(arr.join(''))
+    }
+    return arr.join('')
+}
 
+const main = (runSample) => {
+    console.time("runtime")
+
+    let inputFile = __dirname
+    inputFile += (runSample) ? '/input.txt' : '/sample.txt'
+    console.log(`Reading file ${inputFile}`)
+
+    const input = fs.readFileSync(inputFile).toString()
+    console.log(`Input number: ${input}`)
+
+    const results = [0, 1]
+
+    // create circular linked list with object / map
+
+    let first
+    let min
+    let max
+
+    // maybe move this to a function?
+    let cll = {}
+    /**
+     * {
+     *      2: 3
+     *      3: 1
+     *      1: 2
+     * }
+     * will looks like 2 -> 3 -> 1 -> 2
+     */
+
+    for (let i = 0; i < input.length; i++) {
+        const current = input[i]
+        let next = input[i + 1]
+        if (first === undefined) {
+            first = current
+        }
+        if (next === undefined) {
+            next = first
+        }
+
+        [min, max] = setMinMax(min, max, current)
+
+        cll[current] = next
     }
 
-    let pos = arr.findIndex(e => e === 1)
-    let stack = []
-    for (let i = 1; i < 9; i++) {
-        stack.push(arr[(pos + i) % 9])
+    // move around n times
+    let iteration = 100
+    let currentCup = input[0]
+    for (let i = 0; i < iteration; i++) {
+        currentCup = simulate(cll, currentCup, max)
     }
-    
-    results[0] = stack.join('')
-})
 
+    results[0] = printChain(cll, 1, false)
 
-lineStream.on('close', () => {
-    // part 1
-    console.log(`Result #1: ${results[0]}`)
+    console.log(`Part 1 solution: ${results[0]}`)
 
-    // part 2
-    console.log(`Result #2: ${results[1]}`)
+    cll = {}
 
-    performance.mark('end')
-    performance.measure('Start to end', 'start', 'end')
-})
+    const cupsCount = 1000000
+    // const cupsCount = 20
+    first = undefined
+    for (let i = 0; i < cupsCount; i++) {
+        let current
+        let next
+        if (i < input.length) {
+            current = input[i]
+            next = input[i + 1]
+        } else {
+            current = String(i + 1)
+            next = String(i + 2)
+        }
+
+        if (next === undefined) {
+            next = String(i + 2)
+        }
+
+        if (first === undefined) {
+            first = current
+        }
+        if (next > cupsCount) {
+            next = first
+        }
+
+        [min, max] = [1, cupsCount]
+
+        cll[current] = next
+    }
+    // sanity check
+
+    assert.deepStrictEqual(Object.keys(cll).length === new Set(Object.keys(cll)).size, true)
+    assert.deepStrictEqual(Object.values(cll).length === new Set(Object.values(cll)).size, true)
+
+    let p = _.sortBy(Object.values(cll), Number)
+    assert.deepStrictEqual(p[0] == min && p[p.length - 1] == max, true)
+
+    iteration = 10000000
+    currentCup = input[0]
+    for (let i = 0; i < iteration; i++) {
+        if (i % 2000000 === 0) {
+            console.log(`Iteration ${i}, ${currentCup}`)
+        }
+        currentCup = simulate(cll, currentCup, max)
+    }
+
+    // sanity check
+
+    assert.deepStrictEqual(Object.keys(cll).length === new Set(Object.keys(cll)).size, true)
+    assert.deepStrictEqual(Object.values(cll).length === new Set(Object.values(cll)).size, true)
+
+    p = _.sortBy(Object.values(cll), Number)
+    assert.deepStrictEqual(p[0] == min && p[p.length - 1] == max, true)
+
+    let c = 1
+    for (let i = 0; i < 2; i++) {
+        console.log(cll[c], c)
+        results[1] *= cll[c]
+        c = cll[c]
+    }
+
+    console.log(`Part 2 solution: ${results[1]}`)
+
+    console.timeEnd("runtime")
+}
+
+const args = process.argv.slice(2)
+
+main(args.includes('input')) // run sample by default. to run with input, do node index input
